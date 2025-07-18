@@ -3,25 +3,29 @@ const router = express.Router();
 const db = require('../database');
 
 // Obtener todos los productos
-router.get('/', (req, res) => {
-  db.query('SELECT * FROM products', (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+router.get('/', async (req, res) => {
+  try {
+    const [results] = await db.query('SELECT * FROM products');
     res.json(results);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Obtener producto por ID
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const { id } = req.params;
-  db.query('SELECT * FROM products WHERE id = ?', [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const [results] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
     if (results.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json(results[0]);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Agregar un nuevo producto
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const product = req.body;
   const query = `
     INSERT INTO products 
@@ -39,14 +43,16 @@ router.post('/', (req, res) => {
     product.location,
     product.warehouseId
   ];
-  db.query(query, values, (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const [result] = await db.query(query, values);
     res.json({ id: result.insertId, ...product });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Editar producto
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const product = req.body;
   const query = `
@@ -67,19 +73,23 @@ router.put('/:id', (req, res) => {
     product.warehouseId,
     id
   ];
-  db.query(query, values, (err) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    await db.query(query, values);
     res.json({ message: 'Producto actualizado' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Eliminar producto
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  db.query('DELETE FROM products WHERE id = ?', [id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    await db.query('DELETE FROM products WHERE id = ?', [id]);
     res.json({ message: 'Producto eliminado' });
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
