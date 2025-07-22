@@ -24,9 +24,18 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Agregar un nuevo producto
+// Agregar nuevo producto
 router.post('/', async (req, res) => {
   const product = req.body;
+
+  // Validación de campos obligatorios
+  const requiredFields = ['partNumber', 'name', 'brand', 'price', 'cost', 'stock'];
+  for (let field of requiredFields) {
+    if (!product[field] && product[field] !== 0) {
+      return res.status(400).json({ error: `El campo ${field} es obligatorio.` });
+    }
+  }
+
   const query = `
     INSERT INTO products 
     (partNumber, name, brand, model, compatibleModels, price, cost, stock, location, warehouseId) 
@@ -35,18 +44,22 @@ router.post('/', async (req, res) => {
     product.partNumber,
     product.name,
     product.brand,
-    product.model,
+    product.model || '',
     JSON.stringify(product.compatibleModels || []),
-    product.price,
-    product.cost,
-    product.stock,
-    product.location,
-    product.warehouseId
+    parseFloat(product.price),
+    parseFloat(product.cost),
+    parseInt(product.stock),
+    product.location || '',
+    product.warehouseId || 1
   ];
+
+  console.log('➡️ Producto recibido:', product);
+
   try {
     const [result] = await db.query(query, values);
     res.json({ id: result.insertId, ...product });
   } catch (err) {
+    console.error('❌ Error al insertar producto:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -55,6 +68,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const product = req.body;
+
   const query = `
     UPDATE products SET 
       partNumber = ?, name = ?, brand = ?, model = ?, compatibleModels = ?, 
@@ -64,19 +78,21 @@ router.put('/:id', async (req, res) => {
     product.partNumber,
     product.name,
     product.brand,
-    product.model,
+    product.model || '',
     JSON.stringify(product.compatibleModels || []),
-    product.price,
-    product.cost,
-    product.stock,
-    product.location,
-    product.warehouseId,
+    parseFloat(product.price),
+    parseFloat(product.cost),
+    parseInt(product.stock),
+    product.location || '',
+    product.warehouseId || 1,
     id
   ];
+
   try {
     await db.query(query, values);
     res.json({ message: 'Producto actualizado' });
   } catch (err) {
+    console.error('❌ Error al actualizar producto:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
