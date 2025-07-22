@@ -12,11 +12,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Obtener una cotización por ID
+// Obtener una cotización por ID con sus ítems
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const [quote] = await db.query('SELECT * FROM quotes WHERE id = ?', [id]);
+    if (quote.length === 0) return res.status(404).json({ error: 'Cotización no encontrada' });
+
     const [items] = await db.query('SELECT * FROM quotes_items WHERE quoteId = ?', [id]);
     res.json({ ...quote[0], items });
   } catch (err) {
@@ -27,10 +29,14 @@ router.get('/:id', async (req, res) => {
 // Crear nueva cotización
 router.post('/', async (req, res) => {
   const { customerName, customerPhone, items, total, status } = req.body;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'La cotización debe tener al menos un ítem' });
+  }
+
   try {
     const [result] = await db.query(
       'INSERT INTO quotes (customerName, customerPhone, total, status, createdAt) VALUES (?, ?, ?, ?, NOW())',
-      [customerName, customerPhone, total, status]
+      [customerName, customerPhone, total, status || 'pendiente']
     );
     const quoteId = result.insertId;
 
