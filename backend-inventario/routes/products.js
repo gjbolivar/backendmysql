@@ -23,6 +23,8 @@ router.get('/:id', (req, res) => {
 // Agregar un nuevo producto
 router.post('/', (req, res) => {
   const product = req.body;
+
+  console.log('📦 Datos recibidos para guardar:', product);
   const query = `
     INSERT INTO products 
     (partNumber, name, brand, model, compatibleModels, price, cost, stock, location, warehouseId) 
