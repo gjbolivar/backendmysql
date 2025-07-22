@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/products', productRoutes);
-app.use('/api/quotes', quoteRoutes); // 
+app.use('/api/quotes', quoteRoutes); 
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
