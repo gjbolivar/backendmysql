@@ -12,6 +12,16 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Obtener solo cotizaciones aprobadas
+router.get('/status/aprobada', async (req, res) => {
+  try {
+    const [quotes] = await db.query('SELECT * FROM quotes WHERE status = ?', ['aprobada']);
+    res.json(quotes);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener cotizaciones aprobadas' });
+  }
+});
+
 // Obtener cotización por ID
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
