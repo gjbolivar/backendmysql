@@ -38,4 +38,15 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Aprobar cotización
+router.put('/:id/approve', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query('UPDATE quotes SET status = ? WHERE id = ?', ['aprobada', id]);
+    res.json({ message: 'Cotización aprobada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
