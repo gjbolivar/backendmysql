@@ -23,12 +23,23 @@ router.get('/status/:status', async (req, res) => {
   }
 });
 
-// Obtener una cotización por ID
+// Obtener una cotización por ID con manejo seguro de items
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const [quote] = await db.query('SELECT * FROM quotes WHERE id = ?', [id]);
-    res.json(quote[0]);
+    const [rows] = await db.query('SELECT * FROM quotes WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Cotización no encontrada' });
+    }
+
+    const quote = rows[0];
+    try {
+      quote.items = JSON.parse(quote.items || '[]');
+    } catch {
+      quote.items = [];
+    }
+
+    res.json(quote);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -89,7 +100,6 @@ router.post('/:id/return', async (req, res) => {
   const { id } = req.params;
   const { items } = req.body;
   try {
-    // Aquí puedes añadir lógica para actualizar inventario si lo deseas
     await db.query('UPDATE quotes SET status = ? WHERE id = ?', ['devuelta', id]);
     res.json({ message: 'Cotización devuelta y stock actualizado' });
   } catch (err) {
