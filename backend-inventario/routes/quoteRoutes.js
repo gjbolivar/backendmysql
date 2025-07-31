@@ -1,127 +1,101 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db');
+const db = require('../database');
 
 // Obtener todas las cotizaciones
 router.get('/', async (req, res) => {
   try {
-    const [quotes] = await db.query('SELECT * FROM quotes');
+    const [rows] = await db.query('SELECT * FROM quotes ORDER BY id DESC');
+
+    const quotes = rows.map(row => {
+      let itemsParsed = [];
+      try {
+        if (typeof row.items === 'string' && row.items.trim() !== '') {
+          itemsParsed = JSON.parse(row.items);
+        }
+      } catch (e) {
+        console.warn(`❌ Error al parsear items de quote ID ${row.id}:`, e.message);
+      }
+
+      return {
+        ...row,
+        items: itemsParsed
+      };
+    });
+
     res.json(quotes);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error al obtener cotizaciones:', err.message);
+    res.status(500).json({ error: 'Error interno al obtener cotizaciones' });
   }
 });
 
-// Obtener cotizaciones por estado
-router.get('/status/:status', async (req, res) => {
-  const { status } = req.params;
-  try {
-    const [quotes] = await db.query('SELECT * FROM quotes WHERE status = ?', [status]);
-    res.json(quotes);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener una cotización con sus productos (items desde tabla quotes_items)
+// Obtener una cotización por ID
 router.get('/:id', async (req, res) => {
-  const { id } = req.params;
+  const quoteId = req.params.id;
+
   try {
-    const [quoteRows] = await db.query('SELECT * FROM quotes WHERE id = ?', [id]);
-    if (quoteRows.length === 0) {
+    const [quoteResult] = await db.query('SELECT * FROM quotes WHERE id = ?', [quoteId]);
+
+    if (quoteResult.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
 
-    const quote = quoteRows[0];
-
-    // Obtener los productos de la cotización desde quotes_items
-    const [items] = await db.query('SELECT * FROM quotes_items WHERE quote_id = ?', [id]);
-    quote.items = items;
+    const quote = quoteResult[0];
+    try {
+      quote.items = typeof quote.items === 'string' ? JSON.parse(quote.items) : quote.items;
+    } catch (e) {
+      quote.items = [];
+    }
 
     res.json(quote);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error al obtener la cotización:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// Crear nueva cotización
+// Crear una nueva cotización
 router.post('/', async (req, res) => {
-  const { client, rif, phone, address, date, items, paymentMethod, currency, sellerId } = req.body;
+  const { client, rif, phone, address, items, paymentMethod, currency, sellerId, date, status } = req.body;
 
   try {
-    // Insertar cotización
     const [result] = await db.query(
-      'INSERT INTO quotes (client, rif, phone, address, date, paymentMethod, currency, sellerId, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [client, rif, phone, address, date, paymentMethod, currency, sellerId, 'pendiente']
+      'INSERT INTO quotes (client, rif, phone, address, items, paymentMethod, currency, sellerId, date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [client, rif, phone, address, JSON.stringify(items), paymentMethod, currency, sellerId, date, status || 'pendiente']
     );
 
-    const quoteId = result.insertId;
-
-    // Insertar cada item en quotes_items
-    for (const item of items) {
-      await db.query(
-        'INSERT INTO quotes_items (quote_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
-        [quoteId, item.id, item.quantity, item.price]
-      );
-    }
-
-    res.json({ id: quoteId, message: 'Cotización creada correctamente' });
+    res.json({ id: result.insertId, message: 'Cotización guardada correctamente' });
   } catch (err) {
-    console.error('Error al crear cotización:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error al guardar la cotización:', err.message);
+    res.status(500).json({ error: 'Error al guardar cotización' });
   }
 });
 
-// Actualizar cotización (sin tocar items)
-router.put('/:id', async (req, res) => {
-  const { id } = req.params;
-  const { client, rif, phone, address, date, paymentMethod, currency, sellerId } = req.body;
+// Aprobar una cotización
+router.put('/:id/approve', async (req, res) => {
+  const quoteId = req.params.id;
 
   try {
-    await db.query(
-      'UPDATE quotes SET client = ?, rif = ?, phone = ?, address = ?, date = ?, paymentMethod = ?, currency = ?, sellerId = ? WHERE id = ?',
-      [client, rif, phone, address, date, paymentMethod, currency, sellerId, id]
-    );
-
-    res.json({ message: 'Cotización actualizada' });
+    await db.query('UPDATE quotes SET status = ? WHERE id = ?', ['aprobada', quoteId]);
+    res.json({ message: 'Cotización aprobada correctamente' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error al aprobar cotización:', err.message);
+    res.status(500).json({ error: 'Error al aprobar cotización' });
   }
 });
 
-// Aprobar cotización
-router.post('/:id/approve', async (req, res) => {
-  const { id } = req.params;
-  try {
-    await db.query('UPDATE quotes SET status = ? WHERE id = ?', ['aprobada', id]);
-    res.json({ message: 'Cotización aprobada' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Marcar una cotización como devuelta
+router.put('/:id/return', async (req, res) => {
+  const quoteId = req.params.id;
 
-// Devolver cotización
-router.post('/:id/return', async (req, res) => {
-  const { id } = req.params;
   try {
-    await db.query('UPDATE quotes SET status = ? WHERE id = ?', ['devuelta', id]);
-    res.json({ message: 'Cotización devuelta' });
+    await db.query('UPDATE quotes SET status = ? WHERE id = ?', ['devuelta', quoteId]);
+    res.json({ message: 'Cotización devuelta correctamente' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Eliminar cotización y sus items
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    await db.query('DELETE FROM quotes_items WHERE quote_id = ?', [id]);
-    await db.query('DELETE FROM quotes WHERE id = ?', [id]);
-    res.json({ message: 'Cotización eliminada' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error al devolver cotización:', err.message);
+    res.status(500).json({ error: 'Error al devolver cotización' });
   }
 });
 
 module.exports = router;
-
