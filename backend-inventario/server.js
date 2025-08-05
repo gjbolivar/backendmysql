@@ -3,9 +3,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+
 const productRoutes = require('./routes/productRoutes');
 const quoteRoutes = require('./routes/quoteRoutes'); // ✅ Importar rutas de cotizaciones
 const sellersRoutes = require('./routes/sellerRoutes');
+const clientRoutes = require('./routes/clientRoutes');
 
 dotenv.config();
 
@@ -17,6 +19,7 @@ app.use(express.json());
 app.use('/api/products', productRoutes);
 app.use('/api/quotes', quoteRoutes); // ✅ Usar rutas de cotizaciones
 app.use('/api/sellers', sellersRoutes);
+app.use('/api/clients', clientRoutes);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
