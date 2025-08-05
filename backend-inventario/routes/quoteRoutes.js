@@ -116,4 +116,22 @@ router.put('/:id/return', async (req, res) => {
   }
 });
 
+// Eliminar cotización
+router.delete('/:id', async (req, res) => {
+  const quoteId = req.params.id;
+
+  try {
+    const [result] = await db.query('DELETE FROM quotes WHERE id = ?', [quoteId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Cotización no encontrada' });
+    }
+
+    res.json({ message: 'Cotización eliminada correctamente' });
+  } catch (err) {
+    console.error('❌ Error al eliminar cotización:', err.message);
+    res.status(500).json({ error: 'Error al eliminar cotización' });
+  }
+});
+
 module.exports = router;
