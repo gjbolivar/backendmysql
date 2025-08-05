@@ -72,6 +72,24 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ✅ Editar una cotización existente
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { client, rif, phone, address, items, paymentMethod, currency, sellerId, date } = req.body;
+
+  try {
+    await db.query(
+      'UPDATE quotes SET client = ?, rif = ?, phone = ?, address = ?, items = ?, paymentMethod = ?, currency = ?, sellerId = ?, date = ? WHERE id = ?',
+      [client, rif, phone, address, JSON.stringify(items), paymentMethod, currency, sellerId, date, id]
+    );
+
+    res.json({ message: 'Cotización actualizada correctamente' });
+  } catch (err) {
+    console.error('❌ Error al actualizar cotización:', err.message);
+    res.status(500).json({ error: 'Error al actualizar cotización' });
+  }
+});
+
 // Aprobar una cotización
 router.put('/:id/approve', async (req, res) => {
   const quoteId = req.params.id;
