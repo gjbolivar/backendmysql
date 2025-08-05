@@ -72,16 +72,30 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ✅ Editar una cotización existente
+// Editar una cotización existente
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { client, rif, phone, address, items, paymentMethod, currency, sellerId, date } = req.body;
 
+  // Validación mínima
+  if (!client || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Cliente e items son requeridos' });
+  }
+
   try {
-    await db.query(
-      'UPDATE quotes SET client = ?, rif = ?, phone = ?, address = ?, items = ?, paymentMethod = ?, currency = ?, sellerId = ?, date = ? WHERE id = ?',
-      [client, rif, phone, address, JSON.stringify(items), paymentMethod, currency, sellerId, date, id]
+    const itemsJson = JSON.stringify(items);
+
+    const [result] = await db.query(
+      `UPDATE quotes 
+       SET client = ?, rif = ?, phone = ?, address = ?, items = ?, 
+           paymentMethod = ?, currency = ?, sellerId = ?, date = ? 
+       WHERE id = ?`,
+      [client, rif, phone, address, itemsJson, paymentMethod, currency, sellerId, date, id]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Cotización no encontrada para actualizar' });
+    }
 
     res.json({ message: 'Cotización actualizada correctamente' });
   } catch (err) {
