@@ -6,7 +6,6 @@ const db = require('../database');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM quotes ORDER BY id DESC');
-
     const quotes = rows.map(row => {
       let itemsParsed = [];
       try {
@@ -16,13 +15,8 @@ router.get('/', async (req, res) => {
       } catch (e) {
         console.warn(`❌ Error al parsear items de quote ID ${row.id}:`, e.message);
       }
-
-      return {
-        ...row,
-        items: itemsParsed
-      };
+      return { ...row, items: itemsParsed };
     });
-
     res.json(quotes);
   } catch (err) {
     console.error('❌ Error al obtener cotizaciones:', err.message);
@@ -33,21 +27,17 @@ router.get('/', async (req, res) => {
 // Obtener una cotización por ID
 router.get('/:id', async (req, res) => {
   const quoteId = req.params.id;
-
   try {
     const [quoteResult] = await db.query('SELECT * FROM quotes WHERE id = ?', [quoteId]);
-
     if (quoteResult.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-
     const quote = quoteResult[0];
     try {
       quote.items = typeof quote.items === 'string' ? JSON.parse(quote.items) : quote.items;
     } catch (e) {
       quote.items = [];
     }
-
     res.json(quote);
   } catch (err) {
     console.error('❌ Error al obtener la cotización:', err.message);
@@ -60,11 +50,11 @@ router.post('/', async (req, res) => {
   const { client, rif, phone, address, items, paymentMethod, currency, sellerId, date, status } = req.body;
 
   try {
+    const formattedDate = new Date(date).toISOString().split('T')[0];
     const [result] = await db.query(
       'INSERT INTO quotes (client, rif, phone, address, items, paymentMethod, currency, sellerId, date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [client, rif, phone, address, JSON.stringify(items), paymentMethod, currency, sellerId, date, status || 'pendiente']
+      [client, rif, phone, address, JSON.stringify(items), paymentMethod, currency, sellerId, formattedDate, status || 'pendiente']
     );
-
     res.json({ id: result.insertId, message: 'Cotización guardada correctamente' });
   } catch (err) {
     console.error('❌ Error al guardar la cotización:', err.message);
@@ -77,20 +67,20 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { client, rif, phone, address, items, paymentMethod, currency, sellerId, date } = req.body;
 
-  // Validación mínima
   if (!client || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Cliente e items son requeridos' });
   }
 
   try {
     const itemsJson = JSON.stringify(items);
+    const formattedDate = new Date(date).toISOString().split('T')[0];
 
     const [result] = await db.query(
       `UPDATE quotes 
        SET client = ?, rif = ?, phone = ?, address = ?, items = ?, 
            paymentMethod = ?, currency = ?, sellerId = ?, date = ? 
        WHERE id = ?`,
-      [client, rif, phone, address, itemsJson, paymentMethod, currency, sellerId, date, id]
+      [client, rif, phone, address, itemsJson, paymentMethod, currency, sellerId, formattedDate, id]
     );
 
     if (result.affectedRows === 0) {
