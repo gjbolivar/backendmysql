@@ -5,7 +5,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const productRoutes = require('./routes/productRoutes');
 const quoteRoutes = require('./routes/quoteRoutes'); // ✅ Importar rutas de cotizaciones
-const sellersRoutes = require('./routes/sellers');
+const sellersRoutes = require('./routes/sellerRoutes');
 
 dotenv.config();
 
